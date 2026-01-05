@@ -257,16 +257,50 @@ def extract_data_from_profile(driver, profile_url):
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         page_text = soup.get_text()
         
-        data = {'naziv': '', 'email': '', 'telefon': '', 'kd': ''}
+        data = {'naziv': '', 'email': '', 'telefon': '', 'kd': '', 'prihod': '', 'broj_zaposlenih': '', 'grad': ''}
         
-        # Naziv
+        # ===== IZVUCI PODATKE IZ FAQ SEKCIJE (div.qanda-body) =====
+        qanda_bodies = soup.find_all('div', class_='qanda-body')
+        
+        for qanda in qanda_bodies:
+            text = qanda.get_text()
+            
+            # Prihod
+            if 'prihod' in text.lower() and not data['prihod']:
+                # Traži broj u <span class="text-bold"> ili bilo gde u tekstu
+                bold_span = qanda.find('span', class_='text-bold')
+                if bold_span:
+                    prihod_match = re.search(r'([\d.,]+)', bold_span.get_text())
+                    if prihod_match:
+                        data['prihod'] = prihod_match.group(1).replace('.', '').replace(',', '.')
+                        print(f"    Prihod (FAQ): {data['prihod']}")
+            
+            # Broj zaposlenih
+            if 'zaposlenih' in text.lower() and not data['broj_zaposlenih']:
+                bold_span = qanda.find('span', class_='text-bold')
+                if bold_span:
+                    broj_match = re.search(r'(\d+)', bold_span.get_text())
+                    if broj_match and len(broj_match.group(1)) < 6:
+                        data['broj_zaposlenih'] = broj_match.group(1)
+                        print(f"    Broj zaposlenih (FAQ): {data['broj_zaposlenih']}")
+            
+            # Grad/Adresa
+            if 'adresa' in text.lower() and not data['grad']:
+                cities = ['BAR', 'PODGORICA', 'CETINJE', 'BUDVA', 'ULCINJ', 'HERCEG NOVI', 'KOTOR', 'TIVAT', 'NIKŠIĆ', 'PLJEVLJA']
+                for city in cities:
+                    if city in text.upper():
+                        data['grad'] = city
+                        print(f"    Grad (FAQ): {city}")
+                        break
+        
+        # ===== NAZIV =====
         for tag in soup.find_all(['h1', 'h2', 'h3']):
             text = tag.get_text().strip()
             if text and len(text) > 3 and 'rezultati' not in text.lower():
                 data['naziv'] = text
                 break
         
-        # Email
+        # ===== EMAIL =====
         email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
         emails = re.findall(email_pattern, page_text)
         if emails:
@@ -274,7 +308,7 @@ def extract_data_from_profile(driver, profile_url):
             if filtered:
                 data['email'] = filtered[0]
         
-        # Telefon
+        # ===== TELEFON =====
         phone_patterns = [
             r'\+382[\s\-]?\d{2}[\s\-]?\d{3}[\s\-]?\d{3}',
             r'0\d{2}[\s\-]?\d{3}[\s\-]?\d{3}',
@@ -293,7 +327,7 @@ def extract_data_from_profile(driver, profile_url):
             if valid:
                 data['telefon'] = valid[0]
         
-        # KD
+        # ===== KD =====
         kd_patterns = [r'KD[:\s]*(\d{4})', r'(\d{4})']
         for pattern in kd_patterns:
             matches = re.findall(pattern, page_text, re.IGNORECASE)
@@ -318,9 +352,11 @@ def save_to_csv(pib, data, output_file):
         with open(output_file, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(['pib', 'naziv', 'email', 'telefon', 'kd'])
+                writer.writerow(['pib', 'naziv', 'email', 'telefon', 'kd', 'prihod', 'broj_zaposlenih', 'grad'])
             writer.writerow([pib, data.get('naziv', ''), data.get('email', ''), 
-                           data.get('telefon', ''), data.get('kd', '')])
+                           data.get('telefon', ''), data.get('kd', ''), 
+                           data.get('prihod', ''), data.get('broj_zaposlenih', ''), 
+                           data.get('grad', '')])
     except Exception as e:
         print(f"  ✗ Greška pri čuvanju: {e}")
 
