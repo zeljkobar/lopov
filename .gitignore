@@ -25,6 +25,7 @@ MANIFEST
 # Virtual Environment
 .venv_new/
 .venv/
+.venv_fresh/
 venv/
 ENV/
 env/
@@ -44,6 +45,9 @@ Thumbs.db
 debug_*.html
 chromedriver.exe
 geckodriver.exe
+vpn_state.json
+rezultati_*.csv
+start_app.cmd
 
 # CSV data files (optional)
 # rezultati.csv
